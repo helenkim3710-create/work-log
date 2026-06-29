@@ -256,8 +256,15 @@ function getStorageKey(offset) {
 }
 
 const TODAY_KEY = DAY_KEYS[Math.min(new Date().getDay()-1, 4)] || "mon";
+const DEFAULT_TASK_TEXT = "치료비 지원 상담";
 function initialDayData() {
-  return { tasks: [], special: "" };
+  return { tasks: [{ id: Date.now() + Math.random(), text: DEFAULT_TASK_TEXT, done: false, status: "예정" }], special: "" };
+}
+
+function ensureDefaultTask(day) {
+  const hasDefault = day.tasks.some(t => t.text === DEFAULT_TASK_TEXT);
+  if (hasDefault) return day;
+  return { ...day, tasks: [{ id: Date.now() + Math.random(), text: DEFAULT_TASK_TEXT, done: false, status: "예정" }, ...day.tasks] };
 }
 
 function loadData() {
@@ -267,7 +274,7 @@ function loadData() {
     if (saved) {
       const parsed = JSON.parse(saved);
       const updated = {};
-      DAY_KEYS.forEach(k => { updated[k] = parsed[k] || initialDayData(); });
+      DAY_KEYS.forEach(k => { updated[k] = ensureDefaultTask(parsed[k] || initialDayData()); });
       return updated;
     }
   } catch(e) {}
