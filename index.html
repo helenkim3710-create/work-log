@@ -73,8 +73,8 @@
   .task-text.not-done { color: #222; }
   .task-text:not(.done):hover { color: #1565c0; }
   .task-edit-input { flex: 1; font-size: 14px; padding: 3px 8px; border: 1.5px solid #1565c0; border-radius: 6px; outline: none; color: #222; font-family: inherit; }
-  .edit-btn { background: none; border: none; cursor: pointer; color: #bbb; font-size: 14px; padding: 2px 4px; line-height: 1; }
-  .edit-btn:hover { color: #1565c0; }
+  .edit-btn { background: none; border: 1px solid #ddd; border-radius: 4px; cursor: pointer; color: #888; font-size: 11px; font-weight: 600; padding: 2px 7px; line-height: 18px; font-family: inherit; }
+  .edit-btn:hover { border-color: #1565c0; color: #1565c0; }
   .status-select { padding: 4px 8px; border-radius: 6px; font-weight: 600; font-size: 12px; cursor: pointer; outline: none; font-family: inherit; }
   .del-btn { background: none; border: none; cursor: pointer; color: #ccc; font-size: 16px; padding: 2px 4px; border-radius: 4px; line-height: 1; font-family: inherit; }
   .del-btn:hover { color: #e53935; }
@@ -524,7 +524,7 @@ function renderJournal() {
         <select class="status-select"
           style="border:1.5px solid ${sc.border};background:${sc.bg};color:${sc.text};"
           onchange="setTaskStatus(${task.id}, this.value)">${opts}</select>
-        ${!isEditing ? `<button class="edit-btn" onclick="startEdit(${task.id})" title="수정">✏️</button>` : ''}
+        ${!isEditing ? `<button class="edit-btn" onclick="startEdit(${task.id})" title="수정">수정</button>` : ''}
         <button class="del-btn" onclick="deleteTask(${task.id})">×</button>
       </div>`;
     }).join("");
