@@ -216,8 +216,8 @@
 <script src="docx.js"></script>
 <script src="FileSaver.min.js"></script>
 <script>
-const DAYS = ["월","화","수","목","금"];
-const DAY_KEYS = ["mon","tue","wed","thu","fri"];
+const DAYS = ["월","화","수","목","금","토"];
+const DAY_KEYS = ["mon","tue","wed","thu","fri","sat"];
 const STATUS_OPTIONS = ["완료","진행중","예정","보류"];
 const STATUS_COLORS = {
   "완료": { bg:"#e8f5e9", text:"#2e7d32", border:"#a5d6a7" },
@@ -242,7 +242,7 @@ function getMonday(offset) {
 
 function getWeekDates(offset) {
   const mon = getMonday(offset);
-  return Array.from({length: 5}, (_, i) => {
+  return Array.from({length: 6}, (_, i) => {
     const d = new Date(mon);
     d.setDate(mon.getDate() + i);
     return { year: d.getFullYear(), month: d.getMonth()+1, date: d.getDate() };
