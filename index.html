@@ -12,7 +12,7 @@
   .header { background: #1565c0; padding: 0 24px; box-shadow: 0 2px 8px rgba(21,101,192,0.3); }
   .header-inner { max-width: 900px; margin: 0 auto; display: flex; align-items: center; justify-content: space-between; height: 64px; }
   .header-logo { display: flex; align-items: center; gap: 12px; }
-  .header-icon { width: 36px; height: 36px; background: rgba(255,255,255,0.15); border-radius: 8px; display: flex; align-items: center; justify-content: center; font-size: 18px; }
+  .header-icon { width: 36px; height: 36px; background: rgba(255,255,255,0.2); border-radius: 8px; display: flex; align-items: center; justify-content: center; font-size: 18px; }
   .header-title { color: #fff; font-weight: 700; font-size: 18px; }
   .header-sub { color: rgba(255,255,255,0.65); font-size: 12px; }
   .header-nav { display: flex; gap: 8px; }
@@ -96,11 +96,11 @@
   .report-table-wrap { padding: 0 32px 24px; }
   .report-table { width: 100%; border-collapse: collapse; margin-top: 20px; }
   .report-table th { padding: 14px 16px; background: #1565c0; color: #fff; font-weight: 700; font-size: 14px; text-align: center; border: 1px solid #1565c0; }
-  .report-table td { padding: 16px 20px; font-size: 14px; color: #333; border: 1px solid #e8f0fe; line-height: 1.7; vertical-align: top; }
+  .report-table td { padding: 16px 20px; font-size: 14px; color: #333; border: 1px solid #e3f2fd; line-height: 1.7; vertical-align: top; }
   .report-table .day-cell { padding: 20px 16px; text-align: center; font-weight: 700; font-size: 15px; color: #1565c0; }
   .report-table .status-cell { padding: 16px; text-align: center; }
   .status-badge { display: inline-block; padding: 4px 10px; border-radius: 20px; font-size: 12px; font-weight: 700; }
-  .summary-box { margin: 0 32px 32px; padding: 16px 20px; background: #f8fbff; border-radius: 10px; border: 1px solid #e3f2fd; }
+  .summary-box { margin: 0 32px 32px; padding: 16px 20px; background: #e3f2fd; border-radius: 10px; border: 1px solid #e3f2fd; }
   .summary-title { font-size: 12px; color: #888; font-weight: 700; margin-bottom: 10px; }
   .summary-grid { display: flex; flex-wrap: wrap; gap: 16px; }
   .summary-day { min-width: 140px; }
@@ -135,6 +135,7 @@
         <button class="week-nav-btn" onclick="moveWeek(1)" id="next-week-btn">▶</button>
       </div>
       <div class="header-nav">
+        <span id="save-status" style="font-size:12px;margin-right:4px;"></span>
         <button class="nav-btn active" id="btn-journal" onclick="switchView('journal')">📝 일지 작성</button>
         <button class="nav-btn inactive" id="btn-report" onclick="generateReport()">📊 주간보고 생성</button>
         <button class="nav-btn inactive" onclick="clearWeekData()" style="background:rgba(255,100,100,0.18);">🗑 초기화</button>
@@ -212,9 +213,9 @@ const DAY_KEYS = ["mon","tue","wed","thu","fri"];
 const STATUS_OPTIONS = ["완료","진행중","예정","보류"];
 const STATUS_COLORS = {
   "완료": { bg:"#e8f5e9", text:"#2e7d32", border:"#a5d6a7" },
-  "진행중": { bg:"#e3f2fd", text:"#1565c0", border:"#90caf9" },
+  "진행중": { bg:"#e3f2fd", text:"#1565c0", border:"#42a5f5" },
   "예정": { bg:"#fff8e1", text:"#f57f17", border:"#ffe082" },
-  "보류": { bg:"#fce4ec", text:"#b71c1c", border:"#f48fb1" },
+  "보류": { bg:"#e3f2fd", text:"#b71c1c", border:"#42a5f5" },
 };
 
 // ── 주차 기준 날짜 계산 ──────────────────────────
@@ -288,11 +289,34 @@ let activeDay = TODAY_KEY;
 let currentView = "journal";
 let saveTimeout = null;
 
+function setSaveStatus(status) {
+  const el = document.getElementById("save-status");
+  if (!el) return;
+  if (status === "saving") {
+    el.textContent = "저장 중...";
+    el.style.color = "rgba(255,255,255,0.55)";
+  } else if (status === "saved") {
+    el.textContent = "✓ 저장됨";
+    el.style.color = "rgba(255,255,255,0.85)";
+    setTimeout(() => { el.textContent = ""; }, 2000);
+  } else if (status === "error") {
+    el.textContent = "⚠ 저장 실패";
+    el.style.color = "#ffcdd2";
+  }
+}
+
 function saveData() {
   clearTimeout(saveTimeout);
+  setSaveStatus("saving");
   saveTimeout = setTimeout(() => {
-    localStorage.setItem(getStorageKey(), JSON.stringify(data));
-  }, 300);
+    try {
+      localStorage.setItem(getStorageKey(), JSON.stringify(data));
+      setSaveStatus("saved");
+    } catch(e) {
+      console.error("저장 오류:", e);
+      setSaveStatus("error");
+    }
+  }, 400);
 }
 
 // ── 주차 이동 ─────────────────────────────────────
@@ -501,13 +525,13 @@ function renderReport(reportContent) {
     "완료":  "background:#e8f5e9;color:#2e7d32",
     "진행중": "background:#e3f2fd;color:#1565c0",
     "예정":  "background:#fff8e1;color:#f57f17",
-    "보류":  "background:#fce4ec;color:#b71c1c",
+    "보류":  "background:#e3f2fd;color:#b71c1c",
   };
 
   const rows = DAY_KEYS.map((k,i) => {
     const row = reportContent[k] || {};
     const items = row.taskItems || [];
-    const bgColor = i%2===1 ? "#f8fbff" : "#fff";
+    const bgColor = i%2===1 ? "#e3f2fd" : "#fff";
 
     // 업무 내용 셀: 업무명 나열
     const taskHtml = items.length > 0
@@ -556,7 +580,7 @@ function renderReport(reportContent) {
         </thead>
         <tbody>
           ${rows}
-          <tr style="background:#f8fbff">
+          <tr style="background:#e3f2fd">
             <td style="text-align:center;font-weight:700;font-size:13px;color:#555;padding:16px">기타<br>특이사항</td>
             <td colspan="2" style="padding:16px 20px;font-size:14px;color:#444;line-height:1.7">
               ${escHtml(reportContent.special)||'-'}
@@ -608,7 +632,7 @@ async function downloadDocx() {
 
   const headerBlue = "1565C0";
   const lightBlue  = "E3F2FD";
-  const borderColor = "BBCFEE";
+  const borderColor = "90CAF9";
   const cellBorder = { style: BorderStyle.SINGLE, size: 4, color: borderColor };
   const borders = { top: cellBorder, bottom: cellBorder, left: cellBorder, right: cellBorder };
 
@@ -617,7 +641,7 @@ async function downloadDocx() {
     "완료":  { bg: "E8F5E9", text: "2E7D32" },
     "진행중": { bg: "E3F2FD", text: "1565C0" },
     "예정":  { bg: "FFF8E1", text: "F57F17" },
-    "보류":  { bg: "FCE4EC", text: "B71C1C" },
+    "보류":  { bg: "E3F2FD", text: "B71C1C" },
   };
 
   // 헤더 행
@@ -640,7 +664,7 @@ async function downloadDocx() {
   const dataRows = DAY_KEYS.map((k, i) => {
     const row = rc[k] || {};
     const items = row.taskItems || [];
-    const bgFill = i % 2 === 1 ? "F8FBFF" : "FFFFFF";
+    const bgFill = i % 2 === 1 ? "E3F2FD" : "FFFFFF";
 
     // 업무 내용: 업무별 Paragraph
     const taskParas = items.length > 0
@@ -705,7 +729,7 @@ async function downloadDocx() {
       new TableCell({
         borders,
         width: { size: 900, type: WidthType.DXA },
-        shading: { fill: "F8FBFF", type: ShadingType.CLEAR },
+        shading: { fill: "E3F2FD", type: ShadingType.CLEAR },
         verticalAlign: VerticalAlign.CENTER,
         margins: { top: 80, bottom: 80, left: 80, right: 80 },
         children: [new Paragraph({
@@ -717,7 +741,7 @@ async function downloadDocx() {
         borders,
         columnSpan: 2,
         width: { size: 8100, type: WidthType.DXA },
-        shading: { fill: "F8FBFF", type: ShadingType.CLEAR },
+        shading: { fill: "E3F2FD", type: ShadingType.CLEAR },
         margins: { top: 80, bottom: 80, left: 120, right: 120 },
         children: specialParas
       }),
