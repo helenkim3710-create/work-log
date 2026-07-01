@@ -75,6 +75,10 @@
   .task-edit-input { flex: 1; font-size: 14px; padding: 3px 8px; border: 1.5px solid #1565c0; border-radius: 6px; outline: none; color: #222; font-family: inherit; }
   .edit-btn { background: none; border: 1px solid #ddd; border-radius: 4px; cursor: pointer; color: #888; font-size: 11px; font-weight: 600; padding: 2px 7px; line-height: 18px; font-family: inherit; }
   .edit-btn:hover { border-color: #1565c0; color: #1565c0; }
+  .pin-btn { background: none; border: 1px solid #ddd; border-radius: 4px; cursor: pointer; color: #bbb; font-size: 13px; padding: 2px 6px; line-height: 18px; font-family: inherit; transition: all 0.15s; }
+  .pin-btn.pinned { border-color: #1565c0; color: #1565c0; }
+  .pin-btn:hover { border-color: #1565c0; color: #1565c0; }
+  .pinned-badge { font-size: 11px; color: #1565c0; font-weight: 700; margin-right: 4px; }
   .status-select { padding: 4px 8px; border-radius: 6px; font-weight: 600; font-size: 12px; cursor: pointer; outline: none; font-family: inherit; }
   .del-btn { background: none; border: none; cursor: pointer; color: #ccc; font-size: 16px; padding: 2px 4px; border-radius: 4px; line-height: 1; font-family: inherit; }
   .del-btn:hover { color: #e53935; }
@@ -261,15 +265,24 @@ function getStorageKey(offset) {
 }
 
 const TODAY_KEY = DAY_KEYS[Math.min(new Date().getDay()-1, 4)] || "mon";
-const DEFAULT_TASK_TEXT = "치료비 지원 상담";
+
 function initialDayData() {
-  return { tasks: [{ id: Date.now() + Math.random(), text: DEFAULT_TASK_TEXT, done: false, status: "예정" }], special: "" };
+  return { tasks: [], special: "" };
 }
 
-function ensureDefaultTask(day) {
-  const hasDefault = day.tasks.some(t => t.text === DEFAULT_TASK_TEXT);
-  if (hasDefault) return day;
-  return { ...day, tasks: [{ id: Date.now() + Math.random(), text: DEFAULT_TASK_TEXT, done: false, status: "예정" }, ...day.tasks] };
+// 고정 업무를 각 요일 맨 앞에 반영
+function applyPinned(data, pinnedList) {
+  if (!pinnedList || !pinnedList.length) return data;
+  const result = {};
+  DAY_KEYS.forEach(k => {
+    const day = data[k] || initialDayData();
+    const toAdd = pinnedList
+      .filter(p => !day.tasks.some(t => t.pinnedId === p.id))
+      .map(p => ({ id: Date.now() + Math.random(), pinnedId: p.id, text: p.text, done: false, status: "예정", pinned: true }));
+    const rest = day.tasks.filter(t => !t.pinned || pinnedList.some(p => p.id === t.pinnedId));
+    result[k] = { ...day, tasks: [...toAdd, ...rest] };
+  });
+  return result;
 }
 
 function loadData() {
@@ -279,8 +292,8 @@ function loadData() {
     if (saved) {
       const parsed = JSON.parse(saved);
       const updated = {};
-      DAY_KEYS.forEach(k => { updated[k] = ensureDefaultTask(parsed[k] || initialDayData()); });
-      return updated;
+      DAY_KEYS.forEach(k => { updated[k] = parsed[k] || initialDayData(); });
+      return applyPinned(updated, loadPinned());
     }
   } catch(e) {}
   const d = {};
@@ -288,6 +301,15 @@ function loadData() {
   return d;
 }
 
+// 고정 업무는 별도 키로 저장 (주차 바뀌어도 유지)
+function loadPinned() {
+  try { return JSON.parse(localStorage.getItem("work_journal_pinned") || "[]"); } catch { return []; }
+}
+function savePinned(pinnedList) {
+  try { localStorage.setItem("work_journal_pinned", JSON.stringify(pinnedList)); } catch {}
+}
+
+let pinned = loadPinned();
 let data = loadData();
 let activeDay = TODAY_KEY;
 let currentView = "journal";
@@ -315,6 +337,7 @@ function saveData() {
   saveTimeout = setTimeout(() => {
     try {
       localStorage.setItem(getStorageKey(), JSON.stringify(data));
+      savePinned(pinned);
       setSaveStatus("saved");
     } catch(e) {
       console.error("저장 오류:", e);
@@ -432,6 +455,35 @@ function cancelEdit() {
   renderJournal();
 }
 
+// ── Pin task ─────────────────────────────────────
+function pinTask(taskId) {
+  const task = data[activeDay].tasks.find(t => t.id == taskId);
+  if (!task) return;
+  if (task.pinned) {
+    // 고정 해제: pinned 목록에서 제거 + 모든 요일에서 제거
+    pinned = pinned.filter(p => p.id !== task.pinnedId);
+    DAY_KEYS.forEach(k => {
+      data[k].tasks = data[k].tasks.filter(t => t.pinnedId !== task.pinnedId);
+    });
+  } else {
+    // 고정 등록
+    const newPin = { id: Date.now() + Math.random(), text: task.text };
+    pinned = [...pinned, newPin];
+    // 현재 요일 업무를 고정으로 전환
+    data[activeDay].tasks = data[activeDay].tasks.map(t =>
+      t.id == taskId ? { ...t, pinned: true, pinnedId: newPin.id } : t
+    );
+    // 나머지 요일에 추가
+    DAY_KEYS.filter(k => k !== activeDay).forEach(k => {
+      if (!data[k].tasks.some(t => t.pinnedId === newPin.id)) {
+        data[k].tasks = [{ id: Date.now() + Math.random(), pinnedId: newPin.id, text: newPin.text, done: false, status: "예정", pinned: true }, ...data[k].tasks];
+      }
+    });
+  }
+  saveData();
+  renderJournal();
+}
+
 // ── Delete task ───────────────────────────────────
 function deleteTask(taskId) {
   data[activeDay].tasks = data[activeDay].tasks.filter(t => t.id != taskId);
@@ -512,19 +564,22 @@ function renderJournal() {
         `<option value="${s}" ${task.status===s?'selected':''}>${s}</option>`
       ).join("");
       const isEditing = editingTaskId == task.id;
+      const pinnedBadge = task.pinned ? '<span class="pinned-badge">고정</span>' : '';
       const textPart = isEditing
         ? `<input class="task-edit-input" value="${escHtml(task.text)}"
              onkeydown="if(event.key==='Enter')submitEdit(${task.id}); if(event.key==='Escape')cancelEdit();"
              onblur="submitEdit(${task.id})">`
         : `<span class="task-text ${task.done?'done':'not-done'}"
-             ondblclick="startEdit(${task.id})" title="더블클릭하여 수정">${escHtml(task.text)}</span>`;
+             ondblclick="startEdit(${task.id})" title="더블클릭하여 수정">${pinnedBadge}${escHtml(task.text)}</span>`;
       return `<div class="task-row">
         <input type="checkbox" class="task-check" ${task.done?'checked':''} onchange="toggleDone(${task.id})">
         ${textPart}
         <select class="status-select"
           style="border:1.5px solid ${sc.border};background:${sc.bg};color:${sc.text};"
           onchange="setTaskStatus(${task.id}, this.value)">${opts}</select>
-        ${!isEditing ? `<button class="edit-btn" onclick="startEdit(${task.id})" title="수정">수정</button>` : ''}
+        ${!isEditing ? `
+          <button class="pin-btn ${task.pinned?'pinned':''}" onclick="pinTask(${task.id})" title="${task.pinned?'고정 해제':'고정 (매일 자동 추가)'}">📌</button>
+          <button class="edit-btn" onclick="startEdit(${task.id})" title="수정">수정</button>` : ''}
         <button class="del-btn" onclick="deleteTask(${task.id})">×</button>
       </div>`;
     }).join("");
