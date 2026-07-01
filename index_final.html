@@ -1,0 +1,896 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>업무일지</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: 'Apple SD Gothic Neo', 'Malgun Gothic', '맑은 고딕', sans-serif; background: #f0f4f8; min-height: 100vh; }
+
+  /* Header */
+  .header { background: #1565c0; padding: 0 24px; box-shadow: 0 2px 8px rgba(21,101,192,0.3); }
+  .header-inner { max-width: 900px; margin: 0 auto; display: flex; align-items: center; justify-content: space-between; height: 64px; }
+  .header-logo { display: flex; align-items: center; gap: 12px; }
+  .header-icon { width: 36px; height: 36px; background: rgba(255,255,255,0.2); border-radius: 8px; display: flex; align-items: center; justify-content: center; font-size: 18px; }
+  .header-title { color: #fff; font-weight: 700; font-size: 18px; }
+  .header-sub { color: rgba(255,255,255,0.65); font-size: 12px; }
+  .header-nav { display: flex; gap: 8px; }
+  .nav-btn { padding: 8px 18px; border-radius: 8px; border: none; font-weight: 600; font-size: 13px; cursor: pointer; transition: all 0.15s; font-family: inherit; }
+  .nav-btn.active { background: #fff; color: #1565c0; }
+  .nav-btn.inactive { background: rgba(255,255,255,0.12); color: #fff; }
+  .nav-btn.inactive:hover { background: rgba(255,255,255,0.22); }
+  .week-nav-btn { padding: 6px 12px; border-radius: 7px; border: 1.5px solid rgba(255,255,255,0.4); background: rgba(255,255,255,0.12); color: #fff; font-size: 13px; font-weight: 700; cursor: pointer; font-family: inherit; transition: all 0.15s; }
+  .week-nav-btn:hover { background: rgba(255,255,255,0.28); }
+  .today-btn { font-size: 12px; padding: 6px 10px; }
+
+  /* Body */
+  .body { max-width: 900px; margin: 0 auto; padding: 24px 16px; }
+
+  /* Progress */
+  .progress-card { background: #fff; border-radius: 12px; padding: 16px 20px; margin-bottom: 20px; box-shadow: 0 1px 4px rgba(0,0,0,0.08); }
+  .progress-top { display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px; }
+  .progress-label { font-size: 13px; color: #555; font-weight: 600; }
+  .progress-pct { font-size: 13px; color: #1565c0; font-weight: 700; }
+  .progress-bg { height: 8px; background: #e3f2fd; border-radius: 8px; overflow: hidden; }
+  .progress-fill { height: 100%; background: linear-gradient(90deg, #1565c0, #42a5f5); border-radius: 8px; transition: width 0.4s; }
+
+  /* Journal layout */
+  .journal-layout { display: flex; gap: 16px; }
+  .day-tabs { display: flex; flex-direction: column; gap: 6px; min-width: 72px; }
+  .day-tab { padding: 10px 0; border-radius: 10px; border: none; cursor: pointer; font-weight: 700; font-size: 15px; display: flex; flex-direction: column; align-items: center; gap: 2px; transition: all 0.15s; font-family: inherit; }
+  .day-tab.active { background: #1565c0; color: #fff; box-shadow: 0 2px 8px rgba(21,101,192,0.25); }
+  .day-tab.inactive { background: #fff; color: #444; box-shadow: 0 1px 3px rgba(0,0,0,0.07); }
+  .day-tab .day-date { font-size: 11px; font-weight: 500; opacity: 0.7; }
+  .day-tab .day-count { font-size: 10px; opacity: 0.6; }
+
+  /* Task panel */
+  .task-panel { flex: 1; background: #fff; border-radius: 14px; box-shadow: 0 1px 4px rgba(0,0,0,0.08); overflow: hidden; }
+  .panel-header { background: #1565c0; padding: 16px 20px; display: flex; align-items: center; justify-content: space-between; }
+  .panel-title { color: #fff; font-weight: 700; font-size: 16px; }
+  .panel-header-right { display: flex; align-items: center; gap: 10px; }
+  .panel-done-count { color: rgba(255,255,255,0.7); font-size: 13px; }
+  .check-all-btn { padding: 5px 12px; border-radius: 6px; border: 1.5px solid rgba(255,255,255,0.4); font-weight: 700; font-size: 12px; cursor: pointer; transition: all 0.15s; font-family: inherit; }
+  .check-all-btn.all-done { background: #fff; color: #1565c0; }
+  .check-all-btn.not-done { background: rgba(255,255,255,0.12); color: #fff; }
+
+  /* Add task */
+  .add-task-row { padding: 16px 20px; border-bottom: 1px solid #f0f0f0; display: flex; gap: 10px; }
+  .task-input { flex: 1; padding: 10px 14px; border: 1.5px solid #e0e0e0; border-radius: 8px; font-size: 14px; outline: none; color: #333; transition: border 0.15s; font-family: inherit; }
+  .task-input:focus { border-color: #1565c0; }
+  .add-btn { padding: 10px 18px; background: #1565c0; color: #fff; border: none; border-radius: 8px; font-weight: 700; font-size: 14px; cursor: pointer; font-family: inherit; }
+  .add-btn:hover { background: #1976d2; }
+
+  /* Task list */
+  .task-list { padding: 12px 20px; min-height: 200px; }
+  .empty-tasks { text-align: center; color: #bbb; padding-top: 48px; font-size: 14px; }
+  .empty-icon { font-size: 36px; margin-bottom: 12px; }
+  .task-row { display: flex; align-items: center; gap: 12px; padding: 11px 0; border-bottom: 1px solid #f5f5f5; }
+  .task-row:last-child { border-bottom: none; }
+  .task-check { width: 18px; height: 18px; cursor: pointer; accent-color: #1565c0; flex-shrink: 0; }
+  .task-text { flex: 1; font-size: 14px; transition: all 0.2s; cursor: text; }
+  .task-text.done { color: #aaa; text-decoration: line-through; }
+  .task-text.not-done { color: #222; }
+  .task-text:not(.done):hover { color: #1565c0; }
+  .task-edit-input { flex: 1; font-size: 14px; padding: 3px 8px; border: 1.5px solid #1565c0; border-radius: 6px; outline: none; color: #222; font-family: inherit; }
+  .edit-btn { background: none; border: 1px solid #ddd; border-radius: 4px; cursor: pointer; color: #888; font-size: 11px; font-weight: 600; padding: 2px 7px; line-height: 18px; font-family: inherit; }
+  .edit-btn:hover { border-color: #1565c0; color: #1565c0; }
+  .pin-btn { background: none; border: 1px solid #ddd; border-radius: 4px; cursor: pointer; color: #aaa; font-size: 11px; font-weight: 700; padding: 2px 7px; line-height: 18px; font-family: inherit; transition: all 0.15s; }
+  .pin-btn.pinned { background: #e3f2fd; border-color: #1565c0; color: #1565c0; }
+  .pin-btn:hover { border-color: #1565c0; color: #1565c0; }
+  .pinned-badge { font-size: 11px; color: #1565c0; font-weight: 700; margin-right: 4px; }
+  .status-select { padding: 4px 8px; border-radius: 6px; font-weight: 600; font-size: 12px; cursor: pointer; outline: none; font-family: inherit; }
+  .del-btn { background: none; border: none; cursor: pointer; color: #ccc; font-size: 16px; padding: 2px 4px; border-radius: 4px; line-height: 1; font-family: inherit; }
+  .del-btn:hover { color: #e53935; }
+
+  /* Special notes */
+  .special-area { padding: 12px 20px 20px; border-top: 1px solid #f0f0f0; }
+  .special-label { font-size: 13px; color: #888; font-weight: 600; display: block; margin-bottom: 6px; }
+  .special-textarea { width: 100%; padding: 10px 12px; border: 1.5px solid #e0e0e0; border-radius: 8px; font-size: 13px; resize: vertical; outline: none; color: #444; font-family: inherit; }
+  .special-textarea:focus { border-color: #1565c0; }
+
+  /* Report */
+  .report-card { background: #fff; border-radius: 14px; box-shadow: 0 1px 4px rgba(0,0,0,0.08); overflow: hidden; }
+  .report-header { padding: 28px 32px 20px; border-bottom: 1px solid #f0f0f0; display: flex; justify-content: space-between; align-items: flex-start; }
+  .report-title { font-size: 22px; font-weight: 800; color: #1565c0; letter-spacing: -0.5px; }
+  .report-date { font-size: 13px; color: #888; margin-top: 4px; }
+  .regen-btn { padding: 8px 16px; background: #1565c0; color: #fff; border: none; border-radius: 8px; font-weight: 600; font-size: 13px; cursor: pointer; font-family: inherit; }
+  .regen-btn:hover { background: #1976d2; }
+  .download-btn { padding: 8px 16px; background: #fff; color: #1565c0; border: 2px solid #1565c0; border-radius: 8px; font-weight: 600; font-size: 13px; cursor: pointer; font-family: inherit; }
+  .download-btn:hover { background: #e3f2fd; }
+  .report-header-btns { display: flex; gap: 8px; align-items: center; }
+  .report-loading { text-align: center; padding: 60px 0; color: #666; }
+  .report-loading-icon { font-size: 36px; margin-bottom: 16px; }
+  .report-table-wrap { padding: 0 32px 24px; }
+  .report-table { width: 100%; border-collapse: collapse; margin-top: 20px; }
+  .report-table th { padding: 14px 16px; background: #1565c0; color: #fff; font-weight: 700; font-size: 14px; text-align: center; border: 1px solid #1565c0; }
+  .report-table td { padding: 16px 20px; font-size: 14px; color: #333; border: 1px solid #e3f2fd; line-height: 1.7; vertical-align: top; }
+  .report-table .day-cell { padding: 20px 16px; text-align: center; font-weight: 700; font-size: 15px; color: #1565c0; }
+  .report-table .status-cell { padding: 16px; text-align: center; }
+  .status-badge { display: inline-block; padding: 4px 10px; border-radius: 20px; font-size: 12px; font-weight: 700; }
+  .summary-box { margin: 0 32px 32px; padding: 16px 20px; background: #e3f2fd; border-radius: 10px; border: 1px solid #e3f2fd; }
+  .summary-title { font-size: 12px; color: #888; font-weight: 700; margin-bottom: 10px; }
+  .summary-grid { display: flex; flex-wrap: wrap; gap: 16px; }
+  .summary-day { min-width: 140px; }
+  .summary-day-label { font-size: 12px; font-weight: 700; color: #1565c0; margin-bottom: 4px; }
+  .summary-task { font-size: 12px; color: #555; margin-bottom: 3px; display: flex; align-items: center; gap: 4px; }
+  .report-error { padding: 40px; text-align: center; color: #e53935; }
+  .report-empty { text-align: center; padding: 60px 0; color: #999; }
+
+
+
+  /* Hidden */
+  .hidden { display: none; }
+</style>
+</head>
+<body>
+
+
+
+<div class="header">
+  <div class="header-inner">
+    <div class="header-logo">
+      <div class="header-icon">📋</div>
+      <div>
+        <div class="header-title">업무일지</div>
+        <div class="header-sub" id="week-label"></div>
+      </div>
+    </div>
+    <div style="display:flex;align-items:center;gap:8px;">
+      <div style="display:flex;align-items:center;gap:4px;">
+        <button class="week-nav-btn" onclick="moveWeek(-1)">◀</button>
+        <button class="week-nav-btn today-btn" id="today-btn" onclick="goToday()" style="display:none">오늘</button>
+        <button class="week-nav-btn" onclick="moveWeek(1)" id="next-week-btn">▶</button>
+      </div>
+      <div class="header-nav">
+        <span id="save-status" style="font-size:12px;margin-right:4px;"></span>
+        <button class="nav-btn active" id="btn-journal" onclick="switchView('journal')">📝 일지 작성</button>
+        <button class="nav-btn inactive" id="btn-report" onclick="generateReport()">📊 주간보고 생성</button>
+        <button class="nav-btn inactive" onclick="clearWeekData()" style="background:rgba(255,100,100,0.18);">🗑 초기화</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="body">
+  <!-- Journal View -->
+  <div id="journal-view">
+    <div class="progress-card">
+      <div class="progress-top">
+        <span class="progress-label">이번 주 진행률</span>
+        <span class="progress-pct" id="progress-text">0% (0/0)</span>
+      </div>
+      <div class="progress-bg">
+        <div class="progress-fill" id="progress-fill" style="width:0%"></div>
+      </div>
+    </div>
+    <div class="journal-layout">
+      <div class="day-tabs" id="day-tabs"></div>
+      <div class="task-panel">
+        <div class="panel-header">
+          <span class="panel-title" id="panel-title"></span>
+          <div class="panel-header-right">
+            <span class="panel-done-count" id="panel-count"></span>
+            <button class="check-all-btn not-done" id="check-all-btn" onclick="checkAllDay()" style="display:none">전체 체크</button>
+          </div>
+        </div>
+        <div class="add-task-row">
+          <input class="task-input" id="new-task-input" placeholder="업무 내용 입력 후 Enter 또는 추가 클릭" onkeydown="if(event.key==='Enter')addTask()">
+          <button class="add-btn" onclick="addTask()">+ 추가</button>
+        </div>
+        <div class="task-list" id="task-list"></div>
+        <div class="special-area">
+          <label class="special-label">특이사항</label>
+          <textarea class="special-textarea" id="special-input" rows="2" placeholder="특이사항을 입력하세요" oninput="setSpecial(this.value)"></textarea>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Report View -->
+  <div id="report-view" class="hidden">
+    <div class="report-card">
+      <div class="report-header">
+        <div>
+          <div class="report-title">업무보고</div>
+          <div class="report-date" id="report-date"></div>
+        </div>
+        <div class="report-header-btns">
+          <button class="download-btn" id="download-btn" onclick="downloadDocx()">⬇️ Word 다운로드</button>
+          <button class="regen-btn" onclick="generateReport()">🔄 재생성</button>
+        </div>
+      </div>
+      <div id="report-loading" class="report-loading hidden">
+        <div class="report-loading-icon">⚙️</div>
+        <div style="font-weight:600">보고서를 생성 중입니다...</div>
+      </div>
+      <div id="report-content"></div>
+      <div id="report-empty" class="report-empty hidden">
+        <div style="font-size:36px;margin-bottom:16px">📊</div>
+        <div>상단의 "주간보고 생성" 버튼을 눌러 보고서를 작성하세요</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script src="docx.js"></script>
+<script src="FileSaver.min.js"></script>
+<script>
+const DAYS = ["월","화","수","목","금","토"];
+const DAY_KEYS = ["mon","tue","wed","thu","fri","sat"];
+const STATUS_OPTIONS = ["완료","진행중","예정","보류"];
+const STATUS_COLORS = {
+  "완료": { bg:"#e8f5e9", text:"#2e7d32", border:"#a5d6a7" },
+  "진행중": { bg:"#e3f2fd", text:"#1565c0", border:"#42a5f5" },
+  "예정": { bg:"#fff8e1", text:"#f57f17", border:"#ffe082" },
+  "보류": { bg:"#e3f2fd", text:"#b71c1c", border:"#42a5f5" },
+};
+
+// ── 주차 기준 날짜 계산 ──────────────────────────
+// weekOffset: 0 = 이번주, -1 = 지난주, +1 = 다음주
+let weekOffset = 0;
+
+function getMonday(offset) {
+  const now = new Date();
+  const day = now.getDay();
+  const diff = now.getDate() - day + (day === 0 ? -6 : 1);
+  const mon = new Date(now);
+  mon.setDate(diff + offset * 7);
+  mon.setHours(0, 0, 0, 0);
+  return mon;
+}
+
+function getWeekDates(offset) {
+  const mon = getMonday(offset);
+  return Array.from({length: 6}, (_, i) => {
+    const d = new Date(mon);
+    d.setDate(mon.getDate() + i);
+    return { year: d.getFullYear(), month: d.getMonth()+1, date: d.getDate() };
+  });
+}
+
+function getWeekLabel(offset) {
+  const dates = getWeekDates(offset !== undefined ? offset : weekOffset);
+  const fmt = ({year, month, date}) => `${year}.${String(month).padStart(2,'0')}.${String(date).padStart(2,'0')}`;
+  return `${fmt(dates[0])} ~ ${fmt(dates[5])}`;
+}
+
+// localStorage 키: 월요일 날짜 기준 (예: work_journal_2026-06-23)
+function getStorageKey(offset) {
+  const mon = getMonday(offset !== undefined ? offset : weekOffset);
+  const y = mon.getFullYear();
+  const m = String(mon.getMonth()+1).padStart(2,'0');
+  const d = String(mon.getDate()).padStart(2,'0');
+  return `work_journal_${y}-${m}-${d}`;
+}
+
+const TODAY_KEY = (() => { const d = new Date().getDay(); if (d === 0) return "mon"; if (d === 6) return "sat"; return DAY_KEYS[d - 1]; })();
+
+function initialDayData() {
+  return { tasks: [], special: "" };
+}
+
+// 고정 업무를 각 요일 맨 앞에 반영
+function applyPinned(data, pinnedList) {
+  if (!pinnedList || !pinnedList.length) return data;
+  const result = {};
+  DAY_KEYS.forEach(k => {
+    const day = data[k] || initialDayData();
+    const toAdd = pinnedList
+      .filter(p => !day.tasks.some(t => t.pinnedId === p.id))
+      .map(p => ({ id: Date.now() + Math.random(), pinnedId: p.id, text: p.text, done: false, status: "예정", pinned: true }));
+    const rest = day.tasks.filter(t => !t.pinned || pinnedList.some(p => p.id === t.pinnedId));
+    result[k] = { ...day, tasks: [...toAdd, ...rest] };
+  });
+  return result;
+}
+
+function loadData() {
+  const key = getStorageKey();
+  try {
+    const saved = localStorage.getItem(key);
+    if (saved) {
+      const parsed = JSON.parse(saved);
+      const updated = {};
+      DAY_KEYS.forEach(k => { updated[k] = parsed[k] || initialDayData(); });
+      return applyPinned(updated, loadPinned());
+    }
+  } catch(e) {}
+  const d = {};
+  DAY_KEYS.forEach(k => d[k] = initialDayData());
+  return d;
+}
+
+// 고정 업무는 별도 키로 저장 (주차 바뀌어도 유지)
+function loadPinned() {
+  try { return JSON.parse(localStorage.getItem("work_journal_pinned") || "[]"); } catch { return []; }
+}
+function savePinned(pinnedList) {
+  try { localStorage.setItem("work_journal_pinned", JSON.stringify(pinnedList)); } catch {}
+}
+
+let pinned = loadPinned();
+let data = loadData();
+let activeDay = TODAY_KEY;
+let currentView = "journal";
+let saveTimeout = null;
+
+function setSaveStatus(status) {
+  const el = document.getElementById("save-status");
+  if (!el) return;
+  if (status === "saving") {
+    el.textContent = "저장 중...";
+    el.style.color = "rgba(255,255,255,0.55)";
+  } else if (status === "saved") {
+    el.textContent = "✓ 저장됨";
+    el.style.color = "rgba(255,255,255,0.85)";
+    setTimeout(() => { el.textContent = ""; }, 2000);
+  } else if (status === "error") {
+    el.textContent = "⚠ 저장 실패";
+    el.style.color = "#ffcdd2";
+  }
+}
+
+function saveData() {
+  clearTimeout(saveTimeout);
+  setSaveStatus("saving");
+  saveTimeout = setTimeout(() => {
+    try {
+      localStorage.setItem(getStorageKey(), JSON.stringify(data));
+      savePinned(pinned);
+      setSaveStatus("saved");
+    } catch(e) {
+      console.error("저장 오류:", e);
+      setSaveStatus("error");
+    }
+  }, 400);
+}
+
+// ── 주차 이동 ─────────────────────────────────────
+function moveWeek(dir) {
+  weekOffset += dir;
+  data = loadData();
+  // 오늘 주가 아니면 월요일부터 표시
+  activeDay = weekOffset === 0 ? TODAY_KEY : "mon";
+  updateWeekUI();
+  renderJournal();
+  // 보고서 뷰라면 재생성
+  if (currentView === "report") generateReport();
+}
+
+function goToday() {
+  weekOffset = 0;
+  data = loadData();
+  activeDay = TODAY_KEY;
+  updateWeekUI();
+  renderJournal();
+  if (currentView === "report") generateReport();
+}
+
+function updateWeekUI() {
+  document.getElementById("week-label").textContent = getWeekLabel();
+  document.getElementById("report-date") && (document.getElementById("report-date").textContent = getWeekLabel());
+  document.getElementById("today-btn").style.display = weekOffset !== 0 ? "" : "none";
+}
+
+// ── 현재 주 데이터 초기화 ─────────────────────────
+function clearWeekData() {
+  const label = getWeekLabel();
+  if (!confirm(`${label} 주차의 모든 업무 데이터를 삭제할까요?\n이 작업은 되돌릴 수 없습니다.`)) return;
+  localStorage.removeItem(getStorageKey());
+  data = loadData();
+  activeDay = weekOffset === 0 ? TODAY_KEY : "mon";
+  window._lastReportContent = null;
+  switchView("journal");
+  renderJournal();
+}
+
+// ── View switch ──────────────────────────────────
+function switchView(view) {
+  currentView = view;
+  document.getElementById("journal-view").classList.toggle("hidden", view !== "journal");
+  document.getElementById("report-view").classList.toggle("hidden", view !== "report");
+  document.getElementById("btn-journal").className = "nav-btn " + (view === "journal" ? "active" : "inactive");
+  document.getElementById("btn-report").className = "nav-btn " + (view === "report" ? "active" : "inactive");
+}
+
+// ── Add task ─────────────────────────────────────
+function addTask() {
+  const input = document.getElementById("new-task-input");
+  const text = input.value.trim();
+  if (!text) return;
+  data[activeDay].tasks.push({ id: Date.now(), text, done: false, status: "예정" });
+  input.value = "";
+  saveData();
+  renderJournal();
+}
+
+// ── Toggle done ───────────────────────────────────
+function toggleDone(taskId) {
+  const task = data[activeDay].tasks.find(t => t.id == taskId);
+  if (!task) return;
+  task.done = !task.done;
+  task.status = task.done ? "완료" : "진행중";
+  saveData();
+  renderJournal();
+}
+
+// ── Set status ────────────────────────────────────
+function setTaskStatus(taskId, status) {
+  const task = data[activeDay].tasks.find(t => t.id == taskId);
+  if (!task) return;
+  task.status = status;
+  task.done = status === "완료";
+  saveData();
+  renderJournal();
+}
+
+// ── Edit task ────────────────────────────────────
+let editingTaskId = null;
+
+function startEdit(taskId) {
+  editingTaskId = taskId;
+  renderJournal();
+  setTimeout(() => {
+    const input = document.querySelector('.task-edit-input');
+    if (input) { input.focus(); input.select(); }
+  }, 0);
+}
+
+function submitEdit(taskId) {
+  const input = document.querySelector('.task-edit-input');
+  if (!input) return;
+  const text = input.value.trim();
+  if (text) {
+    const task = data[activeDay].tasks.find(t => t.id == taskId);
+    if (task) task.text = text;
+    saveData();
+  }
+  editingTaskId = null;
+  renderJournal();
+}
+
+function cancelEdit() {
+  editingTaskId = null;
+  renderJournal();
+}
+
+// ── Pin task ─────────────────────────────────────
+function pinTask(taskId) {
+  const task = data[activeDay].tasks.find(t => t.id == taskId);
+  if (!task) return;
+  if (task.pinned) {
+    // 고정 해제: pinned 목록에서만 제거, 업무는 유지 (pinned 플래그만 해제)
+    pinned = pinned.filter(p => p.id !== task.pinnedId);
+    DAY_KEYS.forEach(k => {
+      data[k].tasks = data[k].tasks.map(t =>
+        t.pinnedId === task.pinnedId ? { ...t, pinned: false, pinnedId: undefined } : t
+      );
+    });
+  } else {
+    // 고정 등록
+    const newPin = { id: Date.now() + Math.random(), text: task.text };
+    pinned = [...pinned, newPin];
+    // 현재 요일 업무를 고정으로 전환
+    data[activeDay].tasks = data[activeDay].tasks.map(t =>
+      t.id == taskId ? { ...t, pinned: true, pinnedId: newPin.id } : t
+    );
+    // 나머지 요일에 추가
+    DAY_KEYS.filter(k => k !== activeDay).forEach(k => {
+      if (!data[k].tasks.some(t => t.pinnedId === newPin.id)) {
+        data[k].tasks = [{ id: Date.now() + Math.random(), pinnedId: newPin.id, text: newPin.text, done: false, status: "예정", pinned: true }, ...data[k].tasks];
+      }
+    });
+  }
+  saveData();
+  renderJournal();
+}
+
+// ── Delete task ───────────────────────────────────
+function deleteTask(taskId) {
+  data[activeDay].tasks = data[activeDay].tasks.filter(t => t.id != taskId);
+  saveData();
+  renderJournal();
+}
+
+// ── Special notes ─────────────────────────────────
+function setSpecial(val) {
+  data[activeDay].special = val;
+  saveData();
+}
+
+// ── Check all ─────────────────────────────────────
+function checkAllDay() {
+  const dayData = data[activeDay];
+  const allDone = dayData.tasks.length > 0 && dayData.tasks.every(t => t.done);
+  const nextDone = !allDone;
+  dayData.tasks.forEach(t => { t.done = nextDone; t.status = nextDone ? "완료" : "진행중"; });
+  saveData();
+  renderJournal();
+}
+
+// ── Set active day ────────────────────────────────
+function setActiveDay(key) {
+  activeDay = key;
+  renderJournal();
+}
+
+// ── Render journal ────────────────────────────────
+function renderJournal() {
+  const WEEK_DATES = getWeekDates(weekOffset); // 선택된 주차 기준
+  const totalTasks = DAY_KEYS.reduce((s,k) => s + data[k].tasks.length, 0);
+  const doneTasks  = DAY_KEYS.reduce((s,k) => s + data[k].tasks.filter(t=>t.done).length, 0);
+  const pct = totalTasks > 0 ? Math.round((doneTasks/totalTasks)*100) : 0;
+
+  document.getElementById("progress-text").textContent = `${pct}% (${doneTasks}/${totalTasks})`;
+  document.getElementById("progress-fill").style.width = pct + "%";
+
+  // Day tabs
+  const tabsEl = document.getElementById("day-tabs");
+  tabsEl.innerHTML = DAY_KEYS.map((k,i) => {
+    const cnt = data[k].tasks.length;
+    const dn  = data[k].tasks.filter(t=>t.done).length;
+    return `<button class="day-tab ${k===activeDay?'active':'inactive'}" onclick="setActiveDay('${k}')">
+      ${DAYS[i]}
+      <span class="day-date">${WEEK_DATES[i].month}/${WEEK_DATES[i].date}</span>
+      ${cnt > 0 ? `<span class="day-count">${dn}/${cnt}</span>` : ''}
+    </button>`;
+  }).join("");
+
+  // Panel header
+  const idx = DAY_KEYS.indexOf(activeDay);
+  const dayData = data[activeDay];
+  document.getElementById("panel-title").textContent =
+    `${DAYS[idx]}요일 (${WEEK_DATES[idx].month}/${WEEK_DATES[idx].date}) 업무`;
+  document.getElementById("panel-count").textContent =
+    `${dayData.tasks.filter(t=>t.done).length}/${dayData.tasks.length} 완료`;
+
+  const allDone = dayData.tasks.length > 0 && dayData.tasks.every(t=>t.done);
+  const checkBtn = document.getElementById("check-all-btn");
+  if (dayData.tasks.length > 0) {
+    checkBtn.style.display = "";
+    checkBtn.textContent = allDone ? "✓ 전체 완료" : "전체 체크";
+    checkBtn.className = "check-all-btn " + (allDone ? "all-done" : "not-done");
+  } else {
+    checkBtn.style.display = "none";
+  }
+
+  // Task list
+  const listEl = document.getElementById("task-list");
+  if (dayData.tasks.length === 0) {
+    listEl.innerHTML = `<div class="empty-tasks"><div class="empty-icon">📭</div>등록된 업무가 없습니다</div>`;
+  } else {
+    listEl.innerHTML = dayData.tasks.map(task => {
+      const sc = STATUS_COLORS[task.status];
+      const opts = STATUS_OPTIONS.map(s =>
+        `<option value="${s}" ${task.status===s?'selected':''}>${s}</option>`
+      ).join("");
+      const isEditing = editingTaskId == task.id;
+      const pinnedBadge = task.pinned ? '<span class="pinned-badge">고정</span>' : '';
+      const textPart = isEditing
+        ? `<input class="task-edit-input" value="${escHtml(task.text)}"
+             onkeydown="if(event.key==='Enter')submitEdit(${task.id}); if(event.key==='Escape')cancelEdit();"
+             onblur="submitEdit(${task.id})">`
+        : `<span class="task-text ${task.done?'done':'not-done'}"
+             ondblclick="startEdit(${task.id})" title="더블클릭하여 수정">${pinnedBadge}${escHtml(task.text)}</span>`;
+      return `<div class="task-row">
+        <input type="checkbox" class="task-check" ${task.done?'checked':''} onchange="toggleDone(${task.id})">
+        ${textPart}
+        <select class="status-select"
+          style="border:1.5px solid ${sc.border};background:${sc.bg};color:${sc.text};"
+          onchange="setTaskStatus(${task.id}, this.value)">${opts}</select>
+        ${!isEditing ? `
+          <button class="pin-btn ${task.pinned?'pinned':''}" onclick="pinTask(${task.id})" title="${task.pinned?'고정 해제':'고정 (매일 자동 추가)'}">${task.pinned?'고정중':'고정'}</button>
+          <button class="edit-btn" onclick="startEdit(${task.id})" title="수정">수정</button>` : ''}
+        <button class="del-btn" onclick="deleteTask(${task.id})">×</button>
+      </div>`;
+    }).join("");
+  }
+
+  // Special
+  document.getElementById("special-input").value = dayData.special;
+}
+
+// ── Render report ─────────────────────────────────
+function renderReport(reportContent) {
+  const loadingEl = document.getElementById("report-loading");
+  const contentEl = document.getElementById("report-content");
+  const emptyEl   = document.getElementById("report-empty");
+
+  if (!reportContent) {
+    loadingEl.classList.add("hidden");
+    contentEl.innerHTML = "";
+    emptyEl.classList.remove("hidden");
+    return;
+  }
+  if (reportContent._loading) {
+    loadingEl.classList.remove("hidden");
+    contentEl.innerHTML = "";
+    emptyEl.classList.add("hidden");
+    return;
+  }
+  loadingEl.classList.add("hidden");
+  emptyEl.classList.add("hidden");
+
+  if (reportContent.error) {
+    contentEl.innerHTML = `<div class="report-error">
+      <div style="font-size:32px;margin-bottom:12px">⚠️</div>
+      <div>${escHtml(reportContent.error)}</div>
+    </div>`;
+    return;
+  }
+
+  const STATUS_BADGE_STYLE = {
+    "완료":  "background:#e8f5e9;color:#2e7d32",
+    "진행중": "background:#e3f2fd;color:#1565c0",
+    "예정":  "background:#fff8e1;color:#f57f17",
+    "보류":  "background:#e3f2fd;color:#b71c1c",
+  };
+
+  const rows = DAY_KEYS.map((k,i) => {
+    const row = reportContent[k] || {};
+    const items = row.taskItems || [];
+    const bgColor = i%2===1 ? "#e3f2fd" : "#fff";
+
+    // 업무 내용 셀: 업무명 나열
+    const taskHtml = items.length > 0
+      ? items.map(t => `<div style="padding:2px 0">${escHtml(t.text)}</div>`).join("")
+      : '<span style="color:#bbb">업무 없음</span>';
+
+    // 진행상황 셀: 업무 내용과 동일한 스타일
+    const statusHtml = items.length > 0
+      ? items.map(t => `<div style="padding:2px 0">${escHtml(t.status)}</div>`).join("")
+      : '-';
+
+    return `<tr style="background:${bgColor}">
+      <td class="day-cell">${DAYS[i]}</td>
+      <td style="padding:12px 20px;font-size:14px;color:#333;line-height:1.8;vertical-align:top">${taskHtml}</td>
+      <td style="padding:12px 20px;font-size:14px;color:#333;line-height:1.8;vertical-align:top">${statusHtml}</td>
+    </tr>`;
+  }).join("");
+
+  const summaryDays = DAY_KEYS.map((k,i) => {
+    const tasks = data[k].tasks;
+    if (!tasks.length) return '';
+    const items = tasks.map(t =>
+      `<div class="summary-task">
+        <span>${t.done?'✅':'⬜'}</span>
+        <span style="text-decoration:${t.done?'line-through':'none'};color:${t.done?'#aaa':'#444'}">${escHtml(t.text)}</span>
+      </div>`
+    ).join("");
+    return `<div class="summary-day">
+      <div class="summary-day-label">${DAYS[i]}요일</div>
+      ${items}
+    </div>`;
+  }).join("");
+
+  contentEl.innerHTML = `
+    <div class="report-table-wrap">
+      <table class="report-table">
+        <thead>
+          <tr>
+            <th style="width:80px">요일</th>
+            <th>주요 업무 내용</th>
+            <th style="width:120px">진행상황</th>
+          </tr>
+        </thead>
+        <tbody>
+          ${rows}
+          <tr style="background:#e3f2fd">
+            <td style="text-align:center;font-weight:700;font-size:13px;color:#555;padding:16px">기타<br>특이사항</td>
+            <td colspan="2" style="padding:16px 20px;font-size:14px;color:#444;line-height:1.7">
+              ${escHtml(reportContent.special)||'-'}
+            </td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+    <div class="summary-box">
+      <div class="summary-title">📋 이번 주 업무 목록 요약</div>
+      <div class="summary-grid">${summaryDays}</div>
+    </div>`;
+}
+
+// ── Generate report (API 없이 직접 생성) ──────────
+function generateReport() {
+  switchView("report");
+  document.getElementById("report-date").textContent = getWeekLabel();
+
+  // 입력 내용을 그대로 보고서 데이터로 변환
+  const reportContent = {};
+  DAY_KEYS.forEach((k, i) => {
+    const d = data[k];
+    // 업무 텍스트와 상태를 함께 저장
+    const taskItems = d.tasks.map(t => ({ text: t.text, status: t.status }));
+    reportContent[k] = { taskItems };
+  });
+
+  // 특이사항: 입력된 요일의 내용 합치기
+  const specials = DAY_KEYS
+    .map((k,i) => data[k].special ? `[${DAYS[i]}] ${data[k].special}` : "")
+    .filter(Boolean).join("\n");
+  reportContent.special = specials;
+
+  // 전역 저장 (docx 다운로드에서 재사용)
+  window._lastReportContent = reportContent;
+
+  renderReport(reportContent);
+}
+
+// ── Download DOCX ─────────────────────────────────
+async function downloadDocx() {
+  // 보고서가 아직 생성 안 됐으면 먼저 생성
+  if (!window._lastReportContent) generateReport();
+  const rc = window._lastReportContent;
+
+  const { Document, Packer, Paragraph, TextRun, Table, TableRow, TableCell,
+          AlignmentType, WidthType, BorderStyle, ShadingType, VerticalAlign } = docx;
+
+  const headerBlue = "1565C0";
+  const lightBlue  = "E3F2FD";
+  const borderColor = "90CAF9";
+  const cellBorder = { style: BorderStyle.SINGLE, size: 4, color: borderColor };
+  const borders = { top: cellBorder, bottom: cellBorder, left: cellBorder, right: cellBorder };
+
+  // 상태별 색상
+  const statusColors = {
+    "완료":  { bg: "E8F5E9", text: "2E7D32" },
+    "진행중": { bg: "E3F2FD", text: "1565C0" },
+    "예정":  { bg: "FFF8E1", text: "F57F17" },
+    "보류":  { bg: "E3F2FD", text: "B71C1C" },
+  };
+
+  // 헤더 행
+  const headerRow = new TableRow({
+    tableHeader: true,
+    children: ["요일", "주요 업무 내용", "진행상황"].map((txt, i) => new TableCell({
+      borders,
+      width: { size: [900, 6500, 1600][i], type: WidthType.DXA },
+      shading: { fill: headerBlue, type: ShadingType.CLEAR },
+      verticalAlign: VerticalAlign.CENTER,
+      margins: { top: 80, bottom: 80, left: 120, right: 120 },
+      children: [new Paragraph({
+        alignment: AlignmentType.CENTER,
+        children: [new TextRun({ text: txt, bold: true, color: "FFFFFF", size: 22, font: "맑은 고딕" })]
+      })]
+    }))
+  });
+
+  // 데이터 행 (월~금)
+  const dataRows = DAY_KEYS.map((k, i) => {
+    const row = rc[k] || {};
+    const items = row.taskItems || [];
+    const bgFill = i % 2 === 1 ? "E3F2FD" : "FFFFFF";
+
+    // 업무 내용: 업무별 Paragraph
+    const taskParas = items.length > 0
+      ? items.map(t => new Paragraph({
+          children: [new TextRun({ text: t.text, size: 20, font: "맑은 고딕" })]
+        }))
+      : [new Paragraph({ children: [new TextRun({ text: "업무 없음", color: "AAAAAA", size: 20, font: "맑은 고딕" })] })];
+
+    // 진행상황: 업무별 상태 Paragraph
+    const statusParas = items.length > 0
+      ? items.map(t => {
+          const sc = statusColors[t.status] || { bg: "F5F5F5", text: "555555" };
+          return new Paragraph({
+            alignment: AlignmentType.CENTER,
+            children: [new TextRun({ text: t.status || "-", bold: true, color: sc.text, size: 20, font: "맑은 고딕" })]
+          });
+        })
+      : [new Paragraph({ alignment: AlignmentType.CENTER, children: [new TextRun({ text: "-", size: 20, font: "맑은 고딕" })] })];
+
+    return new TableRow({
+      children: [
+        // 요일 셀
+        new TableCell({
+          borders,
+          width: { size: 900, type: WidthType.DXA },
+          shading: { fill: bgFill, type: ShadingType.CLEAR },
+          verticalAlign: VerticalAlign.CENTER,
+          margins: { top: 80, bottom: 80, left: 80, right: 80 },
+          children: [new Paragraph({
+            alignment: AlignmentType.CENTER,
+            children: [new TextRun({ text: `${DAYS[i]}`, bold: true, size: 24, color: headerBlue, font: "맑은 고딕" })]
+          })]
+        }),
+        // 업무내용 셀
+        new TableCell({
+          borders,
+          width: { size: 6500, type: WidthType.DXA },
+          shading: { fill: bgFill, type: ShadingType.CLEAR },
+          margins: { top: 80, bottom: 80, left: 120, right: 120 },
+          children: taskParas
+        }),
+        // 진행상황 셀 (업무별 상태 각각)
+        new TableCell({
+          borders,
+          width: { size: 1600, type: WidthType.DXA },
+          shading: { fill: bgFill, type: ShadingType.CLEAR },
+          margins: { top: 80, bottom: 80, left: 80, right: 80 },
+          children: statusParas
+        }),
+      ]
+    });
+  });
+
+  // 기타 특이사항 행
+  const specialLines = (rc.special || "").split("\n").filter(Boolean);
+  const specialParas = specialLines.length > 0
+    ? specialLines.map(l => new Paragraph({ children: [new TextRun({ text: l, size: 20, font: "맑은 고딕" })] }))
+    : [new Paragraph({ children: [new TextRun({ text: "-", color: "AAAAAA", size: 20, font: "맑은 고딕" })] })];
+
+  const specialRow = new TableRow({
+    children: [
+      new TableCell({
+        borders,
+        width: { size: 900, type: WidthType.DXA },
+        shading: { fill: "E3F2FD", type: ShadingType.CLEAR },
+        verticalAlign: VerticalAlign.CENTER,
+        margins: { top: 80, bottom: 80, left: 80, right: 80 },
+        children: [new Paragraph({
+          alignment: AlignmentType.CENTER,
+          children: [new TextRun({ text: "기타\n특이사항", bold: true, size: 20, color: "555555", font: "맑은 고딕" })]
+        })]
+      }),
+      new TableCell({
+        borders,
+        columnSpan: 2,
+        width: { size: 8100, type: WidthType.DXA },
+        shading: { fill: "E3F2FD", type: ShadingType.CLEAR },
+        margins: { top: 80, bottom: 80, left: 120, right: 120 },
+        children: specialParas
+      }),
+    ]
+  });
+
+  // 문서 생성
+  const doc = new Document({
+    sections: [{
+      properties: {
+        page: {
+          size: { width: 16838, height: 11906 }, // A4 가로
+          margin: { top: 1000, right: 1000, bottom: 1000, left: 1000 }
+        }
+      },
+      children: [
+        // 제목
+        new Paragraph({
+          alignment: AlignmentType.CENTER,
+          spacing: { after: 200 },
+          children: [new TextRun({ text: "주간업무보고", bold: true, size: 36, color: headerBlue, font: "맑은 고딕" })]
+        }),
+        // 날짜
+        new Paragraph({
+          alignment: AlignmentType.CENTER,
+          spacing: { after: 300 },
+          children: [new TextRun({ text: getWeekLabel(), size: 20, color: "888888", font: "맑은 고딕" })]
+        }),
+        // 테이블
+        new Table({
+          width: { size: 9000, type: WidthType.DXA },
+          columnWidths: [900, 6500, 1600],
+          rows: [headerRow, ...dataRows, specialRow]
+        }),
+      ]
+    }]
+  });
+
+  // 파일 다운로드
+  const blob = await Packer.toBlob(doc);
+  const filename = `주간업무보고_${getWeekLabel().replace(/\./g,"-").replace(/ /g,"")}.docx`;
+  saveAs(blob, filename);
+}
+
+
+function escHtml(str) {
+  if (!str) return '';
+  return str.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+
+// ── Init ──────────────────────────────────────────
+updateWeekUI();
+renderJournal();
+</script>
+</body>
+</html>
