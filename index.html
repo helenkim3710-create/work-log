@@ -75,8 +75,8 @@
   .task-edit-input { flex: 1; font-size: 14px; padding: 3px 8px; border: 1.5px solid #1565c0; border-radius: 6px; outline: none; color: #222; font-family: inherit; }
   .edit-btn { background: none; border: 1px solid #ddd; border-radius: 4px; cursor: pointer; color: #888; font-size: 11px; font-weight: 600; padding: 2px 7px; line-height: 18px; font-family: inherit; }
   .edit-btn:hover { border-color: #1565c0; color: #1565c0; }
-  .pin-btn { background: none; border: 1px solid #ddd; border-radius: 4px; cursor: pointer; color: #bbb; font-size: 13px; padding: 2px 6px; line-height: 18px; font-family: inherit; transition: all 0.15s; }
-  .pin-btn.pinned { border-color: #1565c0; color: #1565c0; }
+  .pin-btn { background: none; border: 1px solid #ddd; border-radius: 4px; cursor: pointer; color: #aaa; font-size: 11px; font-weight: 700; padding: 2px 7px; line-height: 18px; font-family: inherit; transition: all 0.15s; }
+  .pin-btn.pinned { background: #e3f2fd; border-color: #1565c0; color: #1565c0; }
   .pin-btn:hover { border-color: #1565c0; color: #1565c0; }
   .pinned-badge { font-size: 11px; color: #1565c0; font-weight: 700; margin-right: 4px; }
   .status-select { padding: 4px 8px; border-radius: 6px; font-weight: 600; font-size: 12px; cursor: pointer; outline: none; font-family: inherit; }
@@ -252,7 +252,7 @@ function getWeekDates(offset) {
 function getWeekLabel(offset) {
   const dates = getWeekDates(offset !== undefined ? offset : weekOffset);
   const fmt = ({year, month, date}) => `${year}.${String(month).padStart(2,'0')}.${String(date).padStart(2,'0')}`;
-  return `${fmt(dates[0])} ~ ${fmt(dates[4])}`;
+  return `${fmt(dates[0])} ~ ${fmt(dates[5])}`;
 }
 
 // localStorage 키: 월요일 날짜 기준 (예: work_journal_2026-06-23)
@@ -264,7 +264,7 @@ function getStorageKey(offset) {
   return `work_journal_${y}-${m}-${d}`;
 }
 
-const TODAY_KEY = DAY_KEYS[Math.min(new Date().getDay()-1, 4)] || "mon";
+const TODAY_KEY = (() => { const d = new Date().getDay(); if (d === 0) return "mon"; if (d === 6) return "sat"; return DAY_KEYS[d - 1]; })();
 
 function initialDayData() {
   return { tasks: [], special: "" };
@@ -460,10 +460,12 @@ function pinTask(taskId) {
   const task = data[activeDay].tasks.find(t => t.id == taskId);
   if (!task) return;
   if (task.pinned) {
-    // 고정 해제: pinned 목록에서 제거 + 모든 요일에서 제거
+    // 고정 해제: pinned 목록에서만 제거, 업무는 유지 (pinned 플래그만 해제)
     pinned = pinned.filter(p => p.id !== task.pinnedId);
     DAY_KEYS.forEach(k => {
-      data[k].tasks = data[k].tasks.filter(t => t.pinnedId !== task.pinnedId);
+      data[k].tasks = data[k].tasks.map(t =>
+        t.pinnedId === task.pinnedId ? { ...t, pinned: false, pinnedId: undefined } : t
+      );
     });
   } else {
     // 고정 등록
@@ -578,7 +580,7 @@ function renderJournal() {
           style="border:1.5px solid ${sc.border};background:${sc.bg};color:${sc.text};"
           onchange="setTaskStatus(${task.id}, this.value)">${opts}</select>
         ${!isEditing ? `
-          <button class="pin-btn ${task.pinned?'pinned':''}" onclick="pinTask(${task.id})" title="${task.pinned?'고정 해제':'고정 (매일 자동 추가)'}">📌</button>
+          <button class="pin-btn ${task.pinned?'pinned':''}" onclick="pinTask(${task.id})" title="${task.pinned?'고정 해제':'고정 (매일 자동 추가)'}">${task.pinned?'고정중':'고정'}</button>
           <button class="edit-btn" onclick="startEdit(${task.id})" title="수정">수정</button>` : ''}
         <button class="del-btn" onclick="deleteTask(${task.id})">×</button>
       </div>`;
@@ -635,18 +637,15 @@ function renderReport(reportContent) {
       ? items.map(t => `<div style="padding:2px 0">${escHtml(t.text)}</div>`).join("")
       : '<span style="color:#bbb">업무 없음</span>';
 
-    // 진행상황 셀: 업무별 상태 뱃지 각각 표시
+    // 진행상황 셀: 업무 내용과 동일한 스타일
     const statusHtml = items.length > 0
-      ? items.map(t => {
-          const style = STATUS_BADGE_STYLE[t.status] || "background:#f5f5f5;color:#555";
-          return `<div style="margin:2px 0"><span class="status-badge" style="${style}">${escHtml(t.status)}</span></div>`;
-        }).join("")
+      ? items.map(t => `<div style="padding:2px 0">${escHtml(t.status)}</div>`).join("")
       : '-';
 
     return `<tr style="background:${bgColor}">
       <td class="day-cell">${DAYS[i]}</td>
       <td style="padding:12px 20px;font-size:14px;color:#333;line-height:1.8;vertical-align:top">${taskHtml}</td>
-      <td class="status-cell" style="vertical-align:top;padding:12px 16px">${statusHtml}</td>
+      <td style="padding:12px 20px;font-size:14px;color:#333;line-height:1.8;vertical-align:top">${statusHtml}</td>
     </tr>`;
   }).join("");
 
