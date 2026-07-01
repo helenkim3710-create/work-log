@@ -96,6 +96,7 @@ export default function App() {
   const [loaded, setLoaded] = useState(false);
   const [editingId, setEditingId] = useState(null);
   const [editingText, setEditingText] = useState("");
+  const [pinModal, setPinModal] = useState(null); // { taskId, selectedDays }
   const [saveStatus, setSaveStatus] = useState(null);
   const [pinned, setPinned] = useState([]);
   const weekLabel = getWeekLabel();
@@ -158,11 +159,11 @@ export default function App() {
     setNewTaskText("");
   };
 
-  const pinTask = (taskId) => {
+  const openPinModal = (taskId) => {
     const task = dayData.tasks.find(t => t.id === taskId);
     if (!task) return;
     if (task.pinned) {
-      // 고정 해제: pinned 목록에서만 제거, 업무는 유지 (pinned 플래그만 해제)
+      // 고정 해제: 플래그만 제거, 업무는 유지
       const newPinned = pinned.filter(p => p.id !== task.pinnedId);
       setPinned(newPinned);
       setData(prev => {
@@ -175,28 +176,51 @@ export default function App() {
         return next;
       });
     } else {
-      // 고정 등록
-      const newPin = { id: Math.random(), text: task.text };
-      const newPinned = [...pinned, newPin];
-      setPinned(newPinned);
-      // 현재 요일의 해당 업무를 고정 업무로 전환하고 나머지 요일에 추가
-      setData(prev => {
-        const next = {};
-        DAY_KEYS.forEach(k => {
-          if (k === activeDay) {
-            next[k] = { ...prev[k], tasks: prev[k].tasks.map(t => t.id === taskId ? { ...t, pinned: true, pinnedId: newPin.id } : t) };
-          } else {
-            const already = prev[k].tasks.some(t => t.pinnedId === newPin.id);
-            if (!already) {
-              next[k] = { ...prev[k], tasks: [{ id: Math.random(), pinnedId: newPin.id, text: newPin.text, done: false, status: "예정", pinned: true }, ...prev[k].tasks] };
-            } else {
-              next[k] = prev[k];
-            }
-          }
-        });
-        return next;
-      });
+      // 모달 열기: 현재 요일 기본 선택
+      setPinModal({ taskId, selectedDays: [activeDay] });
     }
+  };
+
+  const togglePinDay = (dayKey) => {
+    setPinModal(prev => {
+      const sel = prev.selectedDays.includes(dayKey)
+        ? prev.selectedDays.filter(d => d !== dayKey)
+        : [...prev.selectedDays, dayKey];
+      return { ...prev, selectedDays: sel };
+    });
+  };
+
+  const confirmPin = () => {
+    if (!pinModal) return;
+    const { taskId, selectedDays } = pinModal;
+    const task = dayData.tasks.find(t => t.id === taskId);
+    if (!task || selectedDays.length === 0) { setPinModal(null); return; }
+    const newPin = { id: Math.random(), text: task.text, days: selectedDays };
+    setPinned(prev => [...prev, newPin]);
+    setData(prev => {
+      const next = {};
+      DAY_KEYS.forEach(k => {
+        if (k === activeDay) {
+          // 현재 요일: 선택됐으면 고정 플래그, 아니면 그대로
+          next[k] = { ...prev[k], tasks: prev[k].tasks.map(t =>
+            t.id === taskId
+              ? { ...t, pinned: selectedDays.includes(k), pinnedId: selectedDays.includes(k) ? newPin.id : undefined }
+              : t
+          )};
+        } else if (selectedDays.includes(k)) {
+          // 선택된 다른 요일: 없으면 추가
+          const already = prev[k].tasks.some(t => t.pinnedId === newPin.id);
+          next[k] = already ? prev[k] : {
+            ...prev[k],
+            tasks: [{ id: Math.random(), pinnedId: newPin.id, text: newPin.text, done: false, status: "예정", pinned: true }, ...prev[k].tasks]
+          };
+        } else {
+          next[k] = prev[k];
+        }
+      });
+      return next;
+    });
+    setPinModal(null);
   };
 
   const toggleDone = (dayKey, taskId) => {
@@ -438,7 +462,7 @@ export default function App() {
                           {editingId !== task.id && (
                             <>
                               <button
-                                onClick={() => pinTask(task.id)}
+                                onClick={() => openPinModal(task.id)}
                                 title={task.pinned ? "고정 해제" : "고정 (매일 자동 추가)"}
                                 style={{ background: task.pinned ? "#e3f2fd" : "none", border: `1px solid ${task.pinned ? "#1565c0" : "#ddd"}`, borderRadius: 4, cursor: "pointer", color: task.pinned ? "#1565c0" : "#aaa", fontSize: 11, fontWeight: 700, padding: "2px 7px", lineHeight: "18px" }}
                               >{task.pinned ? "고정중" : "고정"}</button>
@@ -577,6 +601,32 @@ export default function App() {
           </div>
         )}
       </div>
+
+      {/* 고정 요일 선택 모달 */}
+      {pinModal && (
+        <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.4)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 1000 }}>
+          <div style={{ background: "#fff", borderRadius: 16, padding: "28px 28px 24px", minWidth: 320, boxShadow: "0 8px 32px rgba(0,0,0,0.18)" }}>
+            <div style={{ fontWeight: 800, fontSize: 16, color: "#1565c0", marginBottom: 6 }}>고정할 요일 선택</div>
+            <div style={{ fontSize: 13, color: "#888", marginBottom: 20 }}>선택한 요일에 이 업무가 고정됩니다</div>
+            <div style={{ display: "flex", gap: 8, marginBottom: 24, flexWrap: "wrap" }}>
+              {DAY_KEYS.map((k, i) => {
+                const sel = pinModal.selectedDays.includes(k);
+                return (
+                  <button key={k} onClick={() => togglePinDay(k)} style={{ width: 48, height: 48, borderRadius: 10, border: sel ? "2px solid #1565c0" : "2px solid #e0e0e0", background: sel ? "#e3f2fd" : "#fafafa", color: sel ? "#1565c0" : "#888", fontWeight: 700, fontSize: 14, cursor: "pointer" }}>
+                    {DAYS[i]}
+                  </button>
+                );
+              })}
+            </div>
+            <div style={{ display: "flex", gap: 10 }}>
+              <button onClick={() => setPinModal(null)} style={{ flex: 1, padding: "10px", borderRadius: 8, border: "1.5px solid #e0e0e0", background: "#fff", color: "#888", fontWeight: 600, fontSize: 14, cursor: "pointer" }}>취소</button>
+              <button onClick={confirmPin} disabled={pinModal.selectedDays.length === 0} style={{ flex: 2, padding: "10px", borderRadius: 8, border: "none", background: pinModal.selectedDays.length === 0 ? "#e0e0e0" : "#1565c0", color: "#fff", fontWeight: 700, fontSize: 14, cursor: pinModal.selectedDays.length === 0 ? "not-allowed" : "pointer" }}>
+                {pinModal.selectedDays.length === 0 ? "요일을 선택하세요" : pinModal.selectedDays.length + "개 요일에 고정"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

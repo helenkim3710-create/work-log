@@ -456,34 +456,80 @@ function cancelEdit() {
 }
 
 // ── Pin task ─────────────────────────────────────
-function pinTask(taskId) {
+let pinModalTaskId = null;
+let pinModalSelectedDays = [];
+
+function openPinModal(taskId) {
   const task = data[activeDay].tasks.find(t => t.id == taskId);
   if (!task) return;
   if (task.pinned) {
-    // 고정 해제: pinned 목록에서만 제거, 업무는 유지 (pinned 플래그만 해제)
+    // 고정 해제: 플래그만 제거, 업무 유지
     pinned = pinned.filter(p => p.id !== task.pinnedId);
     DAY_KEYS.forEach(k => {
       data[k].tasks = data[k].tasks.map(t =>
         t.pinnedId === task.pinnedId ? { ...t, pinned: false, pinnedId: undefined } : t
       );
     });
+    saveData();
+    renderJournal();
   } else {
-    // 고정 등록
-    const newPin = { id: Date.now() + Math.random(), text: task.text };
-    pinned = [...pinned, newPin];
-    // 현재 요일 업무를 고정으로 전환
-    data[activeDay].tasks = data[activeDay].tasks.map(t =>
-      t.id == taskId ? { ...t, pinned: true, pinnedId: newPin.id } : t
-    );
-    // 나머지 요일에 추가
-    DAY_KEYS.filter(k => k !== activeDay).forEach(k => {
+    pinModalTaskId = taskId;
+    pinModalSelectedDays = [activeDay];
+    renderPinModal();
+    document.getElementById("pin-modal-overlay").style.display = "flex";
+  }
+}
+
+function togglePinDay(dayKey) {
+  if (pinModalSelectedDays.includes(dayKey)) {
+    pinModalSelectedDays = pinModalSelectedDays.filter(d => d !== dayKey);
+  } else {
+    pinModalSelectedDays = [...pinModalSelectedDays, dayKey];
+  }
+  renderPinModal();
+}
+
+function renderPinModal() {
+  const btns = DAYS.map((d, i) => {
+    const k = DAY_KEYS[i];
+    const sel = pinModalSelectedDays.includes(k);
+    return `<button onclick="togglePinDay('${k}')" style="width:48px;height:48px;border-radius:10px;border:2px solid ${sel?"#1565c0":"#e0e0e0"};background:${sel?"#e3f2fd":"#fafafa"};color:${sel?"#1565c0":"#888"};font-weight:700;font-size:14px;cursor:pointer;">${d}</button>`;
+  }).join("");
+  document.getElementById("pin-modal-days").innerHTML = btns;
+  const confirmBtn = document.getElementById("pin-modal-confirm");
+  confirmBtn.disabled = pinModalSelectedDays.length === 0;
+  confirmBtn.style.background = pinModalSelectedDays.length === 0 ? "#e0e0e0" : "#1565c0";
+  confirmBtn.textContent = pinModalSelectedDays.length === 0 ? "요일을 선택하세요" : pinModalSelectedDays.length + "개 요일에 고정";
+}
+
+function confirmPin() {
+  if (!pinModalTaskId || pinModalSelectedDays.length === 0) { closePinModal(); return; }
+  const task = data[activeDay].tasks.find(t => t.id == pinModalTaskId);
+  if (!task) { closePinModal(); return; }
+  const newPin = { id: Date.now() + Math.random(), text: task.text, days: pinModalSelectedDays };
+  pinned = [...pinned, newPin];
+  DAY_KEYS.forEach(k => {
+    if (k === activeDay) {
+      data[k].tasks = data[k].tasks.map(t =>
+        t.id == pinModalTaskId
+          ? { ...t, pinned: pinModalSelectedDays.includes(k), pinnedId: pinModalSelectedDays.includes(k) ? newPin.id : undefined }
+          : t
+      );
+    } else if (pinModalSelectedDays.includes(k)) {
       if (!data[k].tasks.some(t => t.pinnedId === newPin.id)) {
         data[k].tasks = [{ id: Date.now() + Math.random(), pinnedId: newPin.id, text: newPin.text, done: false, status: "예정", pinned: true }, ...data[k].tasks];
       }
-    });
-  }
+    }
+  });
   saveData();
   renderJournal();
+  closePinModal();
+}
+
+function closePinModal() {
+  document.getElementById("pin-modal-overlay").style.display = "none";
+  pinModalTaskId = null;
+  pinModalSelectedDays = [];
 }
 
 // ── Delete task ───────────────────────────────────
@@ -580,7 +626,7 @@ function renderJournal() {
           style="border:1.5px solid ${sc.border};background:${sc.bg};color:${sc.text};"
           onchange="setTaskStatus(${task.id}, this.value)">${opts}</select>
         ${!isEditing ? `
-          <button class="pin-btn ${task.pinned?'pinned':''}" onclick="pinTask(${task.id})" title="${task.pinned?'고정 해제':'고정 (매일 자동 추가)'}">${task.pinned?'고정중':'고정'}</button>
+          <button class="pin-btn ${task.pinned?'pinned':''}" onclick="openPinModal(${task.id})" title="${task.pinned?'고정 해제':'고정 (매일 자동 추가)'}">${task.pinned?'고정중':'고정'}</button>
           <button class="edit-btn" onclick="startEdit(${task.id})" title="수정">수정</button>` : ''}
         <button class="del-btn" onclick="deleteTask(${task.id})">×</button>
       </div>`;
@@ -892,5 +938,17 @@ function escHtml(str) {
 updateWeekUI();
 renderJournal();
 </script>
+  <!-- 고정 요일 선택 모달 -->
+  <div id="pin-modal-overlay" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.4);align-items:center;justify-content:center;z-index:1000;">
+    <div style="background:#fff;border-radius:16px;padding:28px 28px 24px;min-width:320px;box-shadow:0 8px 32px rgba(0,0,0,0.18);">
+      <div style="font-weight:800;font-size:16px;color:#1565c0;margin-bottom:6px;">고정할 요일 선택</div>
+      <div style="font-size:13px;color:#888;margin-bottom:20px;">선택한 요일에 이 업무가 고정됩니다</div>
+      <div id="pin-modal-days" style="display:flex;gap:8px;margin-bottom:24px;flex-wrap:wrap;"></div>
+      <div style="display:flex;gap:10px;">
+        <button onclick="closePinModal()" style="flex:1;padding:10px;border-radius:8px;border:1.5px solid #e0e0e0;background:#fff;color:#888;font-weight:600;font-size:14px;cursor:pointer;">취소</button>
+        <button id="pin-modal-confirm" onclick="confirmPin()" style="flex:2;padding:10px;border-radius:8px;border:none;color:#fff;font-weight:700;font-size:14px;cursor:pointer;"></button>
+      </div>
+    </div>
+  </div>
 </body>
 </html>
