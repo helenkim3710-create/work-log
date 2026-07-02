@@ -296,9 +296,10 @@ function loadData() {
       return applyPinned(updated, loadPinned());
     }
   } catch(e) {}
+  // 저장된 데이터 없으면 빈 데이터에도 고정 업무 반영
   const d = {};
   DAY_KEYS.forEach(k => d[k] = initialDayData());
-  return d;
+  return applyPinned(d, loadPinned());
 }
 
 // 고정 업무는 별도 키로 저장 (주차 바뀌어도 유지)

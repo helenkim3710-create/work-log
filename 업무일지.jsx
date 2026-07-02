@@ -63,6 +63,7 @@ const initData = () => {
 };
 
 const STORAGE_KEY = "work_journal_data";
+const PINNED_KEY  = "work_journal_pinned"; // 주차 무관하게 영구 저장
 
 // window.storage(아티팩트 전용) 우선, 없으면 localStorage fallback
 const store = {
@@ -105,14 +106,16 @@ export default function App() {
   useEffect(() => {
     (async () => {
       try {
+        // 주차 데이터 로드
         const result = await store.get(STORAGE_KEY);
         const parsed = result?.value ? JSON.parse(result.value) : {};
         const ensured = {};
         DAY_KEYS.forEach((k) => {
           ensured[k] = parsed[k] || initialDayData();
         });
-        // 고정 업무를 각 요일에 반영
-        const pinnedRaw = parsed["__pinned__"] || [];
+        // 고정 업무는 영구 별도 키에서 로드 → 매주 자동 반영
+        const pinnedResult = await store.get(PINNED_KEY);
+        const pinnedRaw = pinnedResult?.value ? JSON.parse(pinnedResult.value) : [];
         setData(applyPinned(ensured, pinnedRaw));
         setPinned(pinnedRaw);
       } catch(e) {
@@ -129,8 +132,9 @@ export default function App() {
     setSaveStatus("saving");
     const t = setTimeout(async () => {
       try {
-        const savePayload = { ...data, __pinned__: pinned };
-        const result = await store.set(STORAGE_KEY, JSON.stringify(savePayload));
+        // 주차 데이터와 고정 목록 분리 저장
+        const result = await store.set(STORAGE_KEY, JSON.stringify(data));
+        await store.set(PINNED_KEY, JSON.stringify(pinned));
         if (result) {
           setSaveStatus("saved");
           setTimeout(() => setSaveStatus(null), 2000);
