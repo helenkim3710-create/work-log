@@ -276,10 +276,11 @@ function applyPinned(data, pinnedList) {
   const result = {};
   DAY_KEYS.forEach(k => {
     const day = data[k] || initialDayData();
+    // days 필드가 있으면 해당 요일만, 없으면 전체 (하위 호환)
     const toAdd = pinnedList
-      .filter(p => !day.tasks.some(t => t.pinnedId === p.id))
+      .filter(p => (!p.days || p.days.includes(k)) && !day.tasks.some(t => t.pinnedId === p.id))
       .map(p => ({ id: Date.now() + Math.random(), pinnedId: p.id, text: p.text, done: false, status: "예정", pinned: true }));
-    const rest = day.tasks.filter(t => !t.pinned || pinnedList.some(p => p.id === t.pinnedId));
+    const rest = day.tasks.filter(t => !t.pinned || pinnedList.some(p => p.id === t.pinnedId && (!p.days || p.days.includes(k))));
     result[k] = { ...day, tasks: [...toAdd, ...rest] };
   });
   return result;

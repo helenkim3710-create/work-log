@@ -35,18 +35,18 @@ function getWeekLabel() {
 
 const WEEK_DATES = getWeekDates();
 
-// 고정 업무를 각 요일 맨 앞에 반영 (이미 있으면 스킵)
+// 고정 업무를 각 요일 맨 앞에 반영 (이미 있으면 스킵, days 필드로 요일 제한)
 function applyPinned(data, pinnedList) {
   if (!pinnedList.length) return data;
   const result = {};
   DAY_KEYS.forEach((k) => {
     const day = data[k] || { tasks: [], special: "" };
-    const existingTexts = day.tasks.filter(t => t.pinned).map(t => t.text);
+    // days 필드가 있으면 해당 요일만, 없으면 전체 (하위 호환)
     const toAdd = pinnedList
-      .filter(p => !day.tasks.some(t => t.pinnedId === p.id))
+      .filter(p => (!p.days || p.days.includes(k)) && !day.tasks.some(t => t.pinnedId === p.id))
       .map(p => ({ id: Math.random(), pinnedId: p.id, text: p.text, done: false, status: "예정", pinned: true }));
-    const unpinned = day.tasks.filter(t => !t.pinned || pinnedList.some(p => p.id === t.pinnedId));
-    result[k] = { ...day, tasks: [...toAdd, ...unpinned.filter(t => !t.pinned), ...unpinned.filter(t => t.pinned && pinnedList.some(p => p.id === t.pinnedId))] };
+    const rest = day.tasks.filter(t => !t.pinned || pinnedList.some(p => p.id === t.pinnedId && (!p.days || p.days.includes(k))));
+    result[k] = { ...day, tasks: [...toAdd, ...rest] };
   });
   return result;
 }
