@@ -280,7 +280,12 @@ function applyPinned(data, pinnedList) {
     const toAdd = pinnedList
       .filter(p => (!p.days || p.days.includes(k)) && !day.tasks.some(t => t.pinnedId === p.id))
       .map(p => ({ id: Date.now() + Math.random(), pinnedId: p.id, text: p.text, done: false, status: "예정", pinned: true }));
-    const rest = day.tasks.filter(t => !t.pinned || pinnedList.some(p => p.id === t.pinnedId && (!p.days || p.days.includes(k))));
+    const rest = day.tasks.filter(t => {
+      if (!t.pinned) return true;
+      const pin = pinnedList.find(p => p.id === t.pinnedId);
+      if (!pin) return true; // 고정 해제된 것은 유지
+      return !pin.days || pin.days.includes(k); // 선택된 요일만
+    });
     result[k] = { ...day, tasks: [...toAdd, ...rest] };
   });
   return result;
@@ -519,9 +524,13 @@ function confirmPin() {
           : t
       );
     } else if (pinModalSelectedDays.includes(k)) {
+      // 선택된 요일: 없으면 추가
       if (!data[k].tasks.some(t => t.pinnedId === newPin.id)) {
         data[k].tasks = [{ id: Date.now() + Math.random(), pinnedId: newPin.id, text: newPin.text, done: false, status: "예정", pinned: true }, ...data[k].tasks];
       }
+    } else {
+      // 선택 안 된 요일: 혹시 있다면 제거
+      data[k].tasks = data[k].tasks.filter(t => t.pinnedId !== newPin.id);
     }
   });
   savePinned(pinned);
